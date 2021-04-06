@@ -1,0 +1,81 @@
+<style>
+ul
+{
+    display:block;
+    width:400px;
+    float:left;
+    background:red;
+}
+</style>
+<div id="root"></div>
+<script type="module">
+
+    import React from "https://cdn.esm.sh/v15/react@17.0.1/esnext/react.js";
+    import ReactDOM from "https://esm.sh/react-dom";
+    import {motion, AnimateSharedLayout} from "https://cdn.esm.sh/v15/framer-motion@3.2.1/esnext/framer-motion.js";
+    import _ from "https://esm.sh/lodash";
+
+    let h = React.createElement;
+
+    const Store = {
+        Context:React.createContext(null),
+        Initial:
+        {
+            ListA:[{name:"item-1"}, {name:"item-2"}],
+            ListB:[{name:"item-3"}]
+        },
+        Reducer:(inState, inAction)=>
+        {
+            let clone = { ListA: [...inState.ListA], ListB: [...inState.ListB] };
+            switch(inAction.type)
+            {
+                // type:transfer, listName:a, itemName:item 1
+                case "transfer" :
+                    let listFrom = (inAction.listName == "a") ? clone.ListA : clone.ListB;
+                    let listTo = (inAction.listName == "a") ? clone.ListB : clone.ListA;
+                    let itemIndex = _.findIndex(listFrom, i=>i.name == inAction.itemName);
+                    listTo.push(listFrom[itemIndex]);
+                    listFrom.splice(itemIndex, 1);
+                    break;
+            }
+            return clone;
+        },
+        Provider: inChildren =>
+        {
+            let [state, dispatch] = React.useReducer(Store.Reducer, Store.Initial);
+            return h(Store.Context.Provider, {value:{state, dispatch}}, inChildren);
+        },
+        Consumer: inChildren =>
+        {
+            return h(Store.Context.Consumer, null, inChildren);
+        }
+    };
+    const AppItem = props =>
+    {
+        let {dispatch, state} = React.useContext(Store.Context);
+        let handleClick = e => dispatch({type:"transfer", listName:props.listName, itemName:props.name});
+
+        return h(motion.li, {layoutId:props.name, key:props.name}, [
+            h("span", {}, props.name),
+            h("button", {onClick:handleClick}, "move")
+        ]);
+    };
+    const AppList = props =>
+    {
+        return h(motion.ul, {layout:true}, props.list.map( i=>h(AppItem, {...i, listName:props.listName}) ));
+    };
+    const App = props =>
+    {
+        let [state, dispatch] = React.useReducer(Store.Reducer, Store.Initial);
+
+        return h(Store.Context.Provider, {value:{state, dispatch}}, [
+            h(AnimateSharedLayout, {}, [
+                h(AppList, {list:state.ListA, listName:"a"}),
+                h(AppList, {list:state.ListB, listName:"b"})
+            ])
+        ]);
+    };
+
+    ReactDOM.render(h(App, null, null), document.querySelector("#root"));
+
+</script>
